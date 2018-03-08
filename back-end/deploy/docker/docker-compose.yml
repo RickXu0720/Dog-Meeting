@@ -1,0 +1,110 @@
+version: "3"
+services:
+  mysql:
+    image: mysql:5.7.20
+    restart: unless-stopped
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: 45685213
+    volumes:
+      - "mysql_data:/var/lib/mysql"
+      - "/conf/mysql:/etc/mysql/conf.d"
+
+  redis:
+    image: redis:4.0
+    restart: unless-stopped
+    command: redis-server /usr/local/etc/redis/redis.conf
+    ports:
+      - "6379:6379"
+    volumes:
+      - "redis_data:/data"
+      - "/conf/redis:/usr/local/etc/redis"
+
+  consul:
+    hostname: consul
+    image: consul
+    restart: unless-stopped
+    ports:
+      - "8300:8300"
+      - "8301:8301"
+      - "8302:8302"
+      - "8400:8400"
+      - "8500:8500"
+      - "8600:53/udp"   
+    environment:
+      CONSUL_BIND_INTERFACE: 'eth0'
+      CONSUL_CLIENT_INTERFACE: 'eth0'
+    command: agent -dev -ui
+    volumes:
+      - "consul_data:/consul/data"
+      - "/conf/consul:/consul/config"
+
+  dfs-tracker:
+    image: season/fastdfs
+    restart: unless-stopped
+    ports:
+      - "22122:22122"
+    command: tracker
+    volumes:
+      - "fastdfs_tracker_data:/fastdfs/tracker/data"
+  
+  dfs-storage:
+    image: season/fastdfs
+    restart: unless-stopped
+    environment:
+      TRACKER_SERVER: dfs-tracker:22122
+    ports:
+      - "23000:23000"
+    command: storage
+    volumes:
+      - "fastdfs_store_path:/fastdfs/store_path"
+      - "fastdfs_storage_data:/fastdfs/storage/data"
+    depends_on:
+      - dfs-tracker
+
+  mongo:
+    image: mongo:3.4.9
+    restart: unless-stopped
+    command: mongod
+    ports:
+      - "27017:27017"
+    volumes:
+      - "mongo_data:/data/db"
+
+  zoo:
+    image: zookeeper
+    restart: always
+    ports:
+        - 2181:2181
+    volumes:
+      - zoo_data:/data
+      - zoo_datalog:/zoo_datalog
+
+  kafka:
+    image: wurstmeister/kafka
+    restart: always
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ADVERTISED_HOST_NAME: localhost
+      KAFKA_ADVERTISED_PORT: 9092
+      KAFKA_ZOOKEEPER_CONNECT: zoo:2181
+    ports:
+        - 9092:9092
+    volumes:
+      - kafka_data:/var/lib/kafka
+    depends_on:
+      - zoo
+
+
+volumes:
+  mysql_data:
+  redis_data:
+  consul_data:
+  fastdfs_tracker_data:
+  fastdfs_storage_data:
+  fastdfs_store_path:
+  mongo_data:
+  kafka_data:
+  zoo_data:
+  zoo_datalog:
